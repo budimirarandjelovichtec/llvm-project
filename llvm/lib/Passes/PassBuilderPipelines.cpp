@@ -119,6 +119,7 @@
 #include "llvm/Transforms/Utils/AddDiscriminators.h"
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
 #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
+#include "llvm/Transforms/Utils/CountDebugInstructions.h"
 #include "llvm/Transforms/Utils/CountVisits.h"
 #include "llvm/Transforms/Utils/InjectTLIMappings.h"
 #include "llvm/Transforms/Utils/LibCallsShrinkWrap.h"
@@ -131,6 +132,8 @@
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
 
 using namespace llvm;
+
+extern cl::opt<bool> ExperimentalInstrument;
 
 static cl::opt<InliningAdvisorMode> UseInlineAdvisor(
     "enable-ml-inliner", cl::init(InliningAdvisorMode::Default), cl::Hidden,
@@ -329,6 +332,9 @@ PassBuilder::buildO1FunctionSimplificationPipeline(OptimizationLevel Level,
 
   FunctionPassManager FPM;
 
+  if (ExperimentalInstrument)
+    FPM.addPass(CountDebugInstructions());
+
   if (CountCGSCCVisits)
     FPM.addPass(CountVisitsPass());
 
@@ -481,6 +487,9 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
     return buildO1FunctionSimplificationPipeline(Level, Phase);
 
   FunctionPassManager FPM;
+
+  if (ExperimentalInstrument)
+    FPM.addPass(CountDebugInstructions());
 
   if (CountCGSCCVisits)
     FPM.addPass(CountVisitsPass());
