@@ -47,6 +47,7 @@
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/ARMTargetParserCommon.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Compression.h"
 #include "llvm/Support/FileSystem.h"
@@ -54,6 +55,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/YAMLParser.h"
+#include "llvm/Transforms/Utils/CountDebugInstructions.h"
 #include <cctype>
 
 using namespace clang::driver;
@@ -6998,6 +7000,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
         !isa<PreprocessJobAction>(JA)) {
       if (StringRef(Arg->getValue()) == "-finclude-default-header")
         continue;
+    }
+    if (StringRef(Arg->getValue()) == "-fexperimental-instrument") {
+      CmdArgs.push_back("-mllvm");
+      CmdArgs.push_back("-experimental-instrument");
     }
     CmdArgs.push_back(Arg->getValue());
   }

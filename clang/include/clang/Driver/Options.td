@@ -5680,6 +5680,10 @@ def fverify_debuginfo_preserve_export
                "into specified (JSON) file (should be abs path as we use "
                "append mode to insert new JSON objects).">,
       MarshallingInfoString<CodeGenOpts<"DIBugsReportFilePath">>;
+def fexperimental_instrument
+    : Flag<["-"], "fexperimental-instrument">,
+      HelpText<"Run next passes: CountDebugInstructions.">,
+      MarshallingInfoFlag<CodeGenOpts<"ExperimentalInstrument">>;
 def fwarn_stack_size_EQ
     : Joined<["-"], "fwarn-stack-size=">,
       MarshallingInfoInt<CodeGenOpts<"WarnStackSize">, "UINT_MAX">;
