@@ -121,6 +121,7 @@
 #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
 #include "llvm/Transforms/Utils/CountDebugInstructions.h"
 #include "llvm/Transforms/Utils/CountVisits.h"
+#include "llvm/Transforms/Utils/DeleteDebugInstructions.h"
 #include "llvm/Transforms/Utils/InjectTLIMappings.h"
 #include "llvm/Transforms/Utils/LibCallsShrinkWrap.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
@@ -133,7 +134,6 @@
 
 using namespace llvm;
 
-extern cl::opt<bool> ExperimentalInstrument;
 
 static cl::opt<InliningAdvisorMode> UseInlineAdvisor(
     "enable-ml-inliner", cl::init(InliningAdvisorMode::Default), cl::Hidden,
@@ -149,6 +149,11 @@ static cl::opt<bool> EnableSyntheticCounts(
     "enable-npm-synthetic-counts", cl::Hidden,
     cl::desc("Run synthetic function entry count generation "
              "pass"));
+
+static cl::opt<bool> ExperimentalInstrument(
+    "experimental-instrument", llvm::cl::init(false),
+    cl::desc("Run next passes: CountDebugInstructions, DeleteDebugInstructions")
+);
 
 /// Flag to enable inline deferral during PGO.
 static cl::opt<bool>
@@ -332,8 +337,10 @@ PassBuilder::buildO1FunctionSimplificationPipeline(OptimizationLevel Level,
 
   FunctionPassManager FPM;
 
-  if (ExperimentalInstrument)
+  if (ExperimentalInstrument) {
     FPM.addPass(CountDebugInstructions());
+    FPM.addPass(DeleteDebugInstructions());
+  }
 
   if (CountCGSCCVisits)
     FPM.addPass(CountVisitsPass());
@@ -488,8 +495,10 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
 
   FunctionPassManager FPM;
 
-  if (ExperimentalInstrument)
+  if (ExperimentalInstrument) {
     FPM.addPass(CountDebugInstructions());
+    FPM.addPass(DeleteDebugInstructions());
+  }
 
   if (CountCGSCCVisits)
     FPM.addPass(CountVisitsPass());

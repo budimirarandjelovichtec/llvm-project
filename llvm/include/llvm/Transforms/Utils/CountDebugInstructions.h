@@ -3,8 +3,6 @@
 
 #include "llvm/IR/PassManager.h"
 
-extern llvm::cl::opt<bool> ExperimentalInstrument;
-
 namespace llvm {
 
 class CountDebugInstructions : public PassInfoMixin<CountDebugInstructions> {

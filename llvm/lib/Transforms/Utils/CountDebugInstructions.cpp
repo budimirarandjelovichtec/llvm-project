@@ -3,10 +3,6 @@
 
 using namespace llvm;
 
-cl::opt<bool> ExperimentalInstrument(
-    "experimental-instrument", llvm::cl::init(false),
-    llvm::cl::desc("Runs pass that counts debug instructions")
-);
 
 PreservedAnalyses CountDebugInstructions::run(Function &F,
                                         FunctionAnalysisManager &AM) {

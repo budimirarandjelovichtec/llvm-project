@@ -5682,7 +5682,7 @@ def fverify_debuginfo_preserve_export
       MarshallingInfoString<CodeGenOpts<"DIBugsReportFilePath">>;
 def fexperimental_instrument
     : Flag<["-"], "fexperimental-instrument">,
-      HelpText<"Run next passes: CountDebugInstructions.">,
+      HelpText<"Run next passes: CountDebugInstructions, DeleteDebugInstructions.">,
       MarshallingInfoFlag<CodeGenOpts<"ExperimentalInstrument">>;
 def fwarn_stack_size_EQ
     : Joined<["-"], "fwarn-stack-size=">,
