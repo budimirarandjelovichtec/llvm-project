@@ -19,6 +19,7 @@ add_llvm_component_library(LLVMTransformUtils
   CtorUtils.cpp
   CountBasicBlocks.cpp
   CountDebugInstructions.cpp
+  CountFunctionCalls.cpp
   CountVisits.cpp
   Debugify.cpp
   DeleteDebugInstructions.cpp

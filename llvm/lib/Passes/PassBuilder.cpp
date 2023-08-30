@@ -229,6 +229,7 @@
 #include "llvm/Transforms/Utils/CanonicalizeFreezeInLoops.h"
 #include "llvm/Transforms/Utils/CountBasicBlocks.h"
 #include "llvm/Transforms/Utils/CountDebugInstructions.h"
+#include "llvm/Transforms/Utils/CountFunctionCalls.h"
 #include "llvm/Transforms/Utils/CountVisits.h"
 #include "llvm/Transforms/Utils/Debugify.h"
 #include "llvm/Transforms/Utils/DeleteDebugInstructions.h"
