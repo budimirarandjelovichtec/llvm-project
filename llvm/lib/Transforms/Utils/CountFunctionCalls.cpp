@@ -1,14 +1,17 @@
-//#include "llvm/IR/DebugInfo.h"
-//#include "llvm/ADT/DenseMap.h"
 #include "llvm/Transforms/Utils/CountFunctionCalls.h"
-//#include <map>
 
 using namespace llvm;
 
 void CountFunctionCalls::printNumberOfFunctionCalls() {
-    errs() << "Direct function calls:\n";
+    errs() << "Direct function calls\n";
     for (const std::pair el : mapOfDirectFunctionCalls) {
-        errs() << "Address: " << el.first << "\n";
+        el.first->dump();
+        errs() << "Calls: " << el.second << "\n";
+    }
+
+    errs() << "Indirect function calls\n";
+    for (const std::pair el : mapOfIndirectFunctionCalls) {
+        el.first->dump();
         errs() << "Calls: " << el.second << "\n";
     }
 }
@@ -23,10 +26,15 @@ PreservedAnalyses CountFunctionCalls::run(Module &M,
                 
                 for (int i = 0; i < I.getNumOperands(); ++i) {
                     const Value* op(I.getOperand(i));
-                    if (op->getValueID() == Value::ConstantFirstVal)
+
+                    switch (op->getValueID()) {
+                    case Value::ConstantFirstVal:
                         mapOfDirectFunctionCalls[I.getOperand(i)]++;
-                    else if (op->getValueID() == Value::ConstantFirstVal)
-                        continue;
+                        break;
+                    case Value::GlobalVariableVal:
+                        mapOfIndirectFunctionCalls[I.getOperand(i)]++;
+                        break;
+                    }
                 }
             }
         }
