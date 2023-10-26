@@ -11428,26 +11428,35 @@ static bool isScopedEnumerationType(QualType T) {
   return false;
 }
 
-static void DiagnoseBadShiftValues(Sema& S, ExprResult &LHS, ExprResult &RHS,
-                                   SourceLocation Loc, BinaryOperatorKind Opc,
-                                   QualType LHSType) {
+enum BadShiftValueKind {
+  BSV_Ok,
+  BSV_ShiftIsNegative,
+  BSV_ShiftLHSIsNegative,
+  BSV_ShiftSizeGTTypeWidth,
+};
+
+static BadShiftValueKind DiagnoseBadShiftValues(Sema &S, ExprResult &LHS,
+                                                ExprResult &RHS,
+                                                SourceLocation Loc,
+                                                BinaryOperatorKind Opc,
+                                                QualType LHSType) {
   // OpenCL 6.3j: shift values are effectively % word size of LHS (more defined),
   // so skip remaining warnings as we don't want to modify values within Sema.
   if (S.getLangOpts().OpenCL)
-    return;
+    return BSV_Ok;
 
   // Check right/shifter operand
   Expr::EvalResult RHSResult;
   if (RHS.get()->isValueDependent() ||
       !RHS.get()->EvaluateAsInt(RHSResult, S.Context))
-    return;
+    return BSV_Ok;
   llvm::APSInt Right = RHSResult.Val.getInt();
 
   if (Right.isNegative()) {
     S.DiagRuntimeBehavior(Loc, RHS.get(),
                           S.PDiag(diag::warn_shift_negative)
                             << RHS.get()->getSourceRange());
-    return;
+    return BSV_ShiftIsNegative;
   }
 
   QualType LHSExprType = LHS.get()->getType();
@@ -11463,12 +11472,12 @@ static void DiagnoseBadShiftValues(Sema& S, ExprResult &LHS, ExprResult &RHS,
     S.DiagRuntimeBehavior(Loc, RHS.get(),
                           S.PDiag(diag::warn_shift_gt_typewidth)
                             << RHS.get()->getSourceRange());
-    return;
+    return BSV_ShiftSizeGTTypeWidth;
   }
 
   // FIXME: We probably need to handle fixed point types specially here.
   if (Opc != BO_Shl || LHSExprType->isFixedPointType())
-    return;
+    return BSV_Ok;
 
   // When left shifting an ICE which is signed, we can check for overflow which
   // according to C++ standards prior to C++2a has undefined behavior
@@ -11480,7 +11489,7 @@ static void DiagnoseBadShiftValues(Sema& S, ExprResult &LHS, ExprResult &RHS,
   if (LHS.get()->isValueDependent() ||
       LHSType->hasUnsignedIntegerRepresentation() ||
       !LHS.get()->EvaluateAsInt(LHSResult, S.Context))
-    return;
+    return BSV_Ok;
   llvm::APSInt Left = LHSResult.Val.getInt();
 
   // Don't warn if signed overflow is defined, then all the rest of the
@@ -11488,7 +11497,7 @@ static void DiagnoseBadShiftValues(Sema& S, ExprResult &LHS, ExprResult &RHS,
   // Also don't warn in C++20 mode (and newer), as signed left shifts
   // always wrap and never overflow.
   if (S.getLangOpts().isSignedOverflowDefined() || S.getLangOpts().CPlusPlus20)
-    return;
+    return BSV_Ok;
 
   // If LHS does not have a non-negative value then, the
   // behavior is undefined before C++2a. Warn about it.
@@ -11496,13 +11505,13 @@ static void DiagnoseBadShiftValues(Sema& S, ExprResult &LHS, ExprResult &RHS,
     S.DiagRuntimeBehavior(Loc, LHS.get(),
                           S.PDiag(diag::warn_shift_lhs_negative)
                             << LHS.get()->getSourceRange());
-    return;
+    return BSV_ShiftLHSIsNegative;
   }
 
   llvm::APInt ResultBits =
       static_cast<llvm::APInt&>(Right) + Left.getMinSignedBits();
   if (LeftBits.uge(ResultBits))
-    return;
+    return BSV_Ok;
   llvm::APSInt Result = Left.extend(ResultBits.getLimitedValue());
   Result = Result.shl(Right);
 
@@ -11519,13 +11528,17 @@ static void DiagnoseBadShiftValues(Sema& S, ExprResult &LHS, ExprResult &RHS,
     S.Diag(Loc, diag::warn_shift_result_sets_sign_bit)
         << HexResult << LHSType
         << LHS.get()->getSourceRange() << RHS.get()->getSourceRange();
-    return;
+
+    // We return BSV_Ok because we already emitted the diagnostic.
+    return BSV_Ok;
   }
 
   S.Diag(Loc, diag::warn_shift_result_gt_typewidth)
     << HexResult.str() << Result.getMinSignedBits() << LHSType
     << Left.getBitWidth() << LHS.get()->getSourceRange()
     << RHS.get()->getSourceRange();
+
+  return BSV_Ok;
 }
 
 /// Return the resulting type when a vector is shifted
@@ -11773,7 +11786,25 @@ QualType Sema::CheckShiftOperands(ExprResult &LHS, ExprResult &RHS,
       isScopedEnumerationType(RHSType)) {
     return InvalidOperands(Loc, LHS, RHS);
   }
-  DiagnoseBadShiftValues(*this, LHS, RHS, Loc, Opc, LHSType);
+
+  BadShiftValueKind BSVKind =
+      DiagnoseBadShiftValues(*this, LHS, RHS, Loc, Opc, LHSType);
+  if (ExprEvalContexts.back().isConstantEvaluated()) {
+    switch (BSVKind) {
+    case BSV_ShiftSizeGTTypeWidth:
+      if (!getLangOpts().CPlusPlus11)
+        Diag(Loc, diag::warn_shift_gt_typewidth) << RHS.get()->getSourceRange();
+      break;
+    case BSV_ShiftIsNegative:
+      Diag(Loc, diag::warn_shift_negative) << RHS.get()->getSourceRange();
+      break;
+    case BSV_ShiftLHSIsNegative:
+      Diag(Loc, diag::warn_shift_lhs_negative) << RHS.get()->getSourceRange();
+      break;
+    default:
+      break;
+    }
+  }
 
   // "The type of the result is that of the promoted left operand."
   return LHSType;
